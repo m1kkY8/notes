@@ -20,6 +20,12 @@
 
 - Ovaj makro se koristi tako sto se kao cond stavi uslov koji ne sme da bude true, na primer kod rada sa File Descriptorima kada proveravamo `check_error(fd != -1)`, u slucaju da je fd -1 mi izbacujemo gresku. Takodje je jako bitno da koristimo `errno.h` zaglavlje koje nam omogucava detaljniji uvid u to sta je tacno greska.
 
+>[!bug]+ OBAVEZNO
+> **Pokazivace uvek inicijalizovati na NULL**
+> **Uvek nakon alokacije proveriti da li je alokacija uspesna**
+> **Uvek zatvoriti otvorene fajlove i fajl dekriptore**
+> **Uvek osloboditi alociranu memoriju nakon sto ona prestane da se koristi**
+
 > [!important] TLPI poglavlja
 > 3.4 Handling errors from Sys Calls
 
@@ -140,7 +146,7 @@ void print_groups(struct group *grinfo){
 
 - Svaki otvoren fajl na sistemu ima svoj fajl desktriptor, on nam govori koji je fajl otvoren, sa kojim pravima pristupa i sa kojim flagovima smo otvorili taj fajl odnosno sta mozemo sa njim da radimo
 - Za otvaranje fajlova koristimo funkciju `open` kojoj saljemo putanju do naseg fajla, flagove koji odredjuju kako se kreira fajl i prava pristupa.
-![[Pasted image 20231030152556.png]]
+![[Pasted image 20231117151739.png]]
 - Ovo su flagovi sa kojima otvaramo fajlove.
 
 - Nakon sto smo pozvali funkciju `open` ona vraca ceo broj int koji je nas file deskriptor koji nam omogucava da kasnije pisemo ili citamo otvoreni fajl.
@@ -174,4 +180,43 @@ void print_groups(struct group *grinfo){
 - U ovom kodu otvaramo fajl sa `O_RDONLY` flagom koji nam omugcava citanje fajla zatim alociramo niz karaktera `char buf[]` u koji cemo da smesatamo procitane podatke.
 - Funkcija `read` vraca broj procitanih bajtova fajla i sve dok broj procitanih bajtova nije 0 nastavljamo da citamo, u slucaju da je `readBytes = -1` to znaci da je doslo do greske.
 - Ova funkcija cita dati fajl i ispisuje ga na standardni izlaz, slicno kao progaram `cat` u linuxu.
+
+### Kopiranje fajlova
+
+```C
+	int srcfd = open(argv[1], O_RDONLY);
+	check_error(srcfd != -1, "srcfd");
+
+	int destfd = open(argv[2], O_WRONLY | O_TRUNC | O_CREAT, 0644);
+	check_error(destfd != -1, "destfd");
+
+	char *buf = malloc(BUFF_SIZE);
+	check_error(buf != NULL, "buffer");
+
+	int readBytes = 0;
+
+	while(readBytes = read(srcfd, buf, BUFF_SIZE)){
+		check_error(write(destfd, buf, readBytes) != -1, "write");
+	}
+
+	check_error(readBytes != -1, "read");
+
+	close(srcfd);
+	close(destfd);
+	free(buf);
+```
+
+- Kreiramo `int srcFd, int destFd`, koji su fajl dekriptori nasih fajlova `srcFd` je fajl koji kopiramo,  `destFd` je fajl u koji kopiramo, zatim inicalizujemo bafer za citanje i citamo sve dok `read` ne vrati 0.
+- Problem kod ovog pristupa je sto mi ne zadrzvamo prava pristupa fajla koji kopiramo nakon sto se kopiranje zavrsi posto je `destFd` otvoren sa razlicitim pravima i on ce uvek imati prava 0644 ili `rw-r--r--` sto znaci da ce samo korisnik moci da cita i pise dok ce ostali moci samo da citaju.
+
+
+> [!important] TLPI poglavlja
+> 4-4.7
+> 18.3 - unlink
+> 18.6 rmdir i mkdir
+> 15.2-15.2.1
+
+
+
+
 
