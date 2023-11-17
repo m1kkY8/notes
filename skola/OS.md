@@ -1,5 +1,3 @@
-**1.350,00 RSD**# Vezbe
-
 ## Cas 1
 
 - Ceste greske
