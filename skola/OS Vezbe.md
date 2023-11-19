@@ -377,10 +377,193 @@ int main(int argc, char** argv) {
 
 ---
 # 5. cas
-- Nesto 
-
-
-
 ---
 
+# 6. cas
+## Procesi
+- Za rad sa procesima najbitnije su nam funkcije `fork`, `exit`, `wait` i neka od varijacija `exec` funkcije.
 
+- `fork()` sistemski poziv omogucava procesu tj. roditelju da kreira `dete` proces koji je u potpunosti nezavisan on njega i sa kojim nema direktan nacin komunikacije, ali `dete` proces dobija istu kopiju podataka koje je imao i roditelj (`stack` , `heap`, `data` i `text` segmente iz memorije). 
+
+- `exit()` kada pozovemu, proces se prekida i tada su svi resursi koje je on koristio oslobodjeni i prepusteni kernelu da ih on realocira, funkcija `exit()` obicno prima kao argument `int EXIT_STATUS` koji ima u glavnom vrednost 0 ili 1, gde 0 oznacava uspeh a 1 neuspeh u izvrsavanju.
+
+- `wait()` koristimo da bi suspendovali dalje izvrsavanje procesa dok se `dete` ne zavrsi odnosno prekine `exit` pozivom, `wait` takodje vraca status zavrsetka `deteta` 
+
+![[Pasted image 20231119162940.png]]
+- Dijagram kreiranja `deteta`, njegovog zivota i unistenja.
+
+-  U programu mozemo da uz pomoc funkcije `fork` da kreiramo novi proces kome je nas vec pokrenut program `parent`. Funkcija `fork()` vraca `pid_t` tip podatka odnosno ceo broj koji oznacava ID naseg novog procesa.
+
+- Proces `dete` ima ID 0 dok je PID `roditelja` uvek veci od nula i tako mozemo da ih i obradjujemo.
+
+```C
+pid_t childPid = fork();
+check_error(childPid != -1, "fork failed");
+
+if (childPid > 0) { // parent branch
+	printf("Parent. PPID: %jd, CPID: %jd\n", \
+        (intmax_t)getpid(), (intmax_t)childPid);
+} else { // child branch
+    printf("Child. CPID: %jd, PPID: %jd\n", \
+        (intmax_t)getpid(), (intmax_t)getppid());
+}
+
+printf("We both execute this\n")
+```
+- Ovaj kod kreira `dete` proces i iz njega ispisuje "Child".  Nakon sto se oba procesa izvrse program ce se nastaviti sa izvrsavanjem `roditelj` i `dete` ce stici do `printf()` funkcije
+
+
+```C
+pid_t childPid = fork();
+check_error(childPid != -1, "fork failed");
+
+if (childPid > 0) { // parent branch
+	printf("Parent. PPID: %jd, CPID: %jd\n", \
+        (intmax_t)getpid(), (intmax_t)childPid);
+} else { // child branch
+    printf("Child. CPID: %jd, PPID: %jd\n", \
+        (intmax_t)getpid(), (intmax_t)getppid());
+    exit(EXIT_SUCCESS)
+}
+
+printf("Only parrent\n")
+```
+- Kod je isit kao gore samo sto se `dete` ubija i ostaje samo `roditelj`. `roditelji` bez `dece` se zovu zombi procesi, tako da nakon svakog `fork` moramo da imamo i `wait` gde cemo obraditi zombi procese da ne bi zagusivali sistem.
+
+- Isto tako moramo da vodimo i racuna o `sirocicima` ('orphans'). Siroce je `dete` kojem je roditelj zavrsen pre njega.
+
+>[!todo] Obavezne stvari za cist i dobar kod
+> `malloc` i `free`
+> `open` i `close`
+> `fork` i `wait`
+
+- S obzirom da `dete` dobija kopiju svih podataka koje je imao `roditelj` i da se oni izvrsavaju potpuno izolovano jedan od drugog, svaka promenljiva koju definisemo pre `fork` ce biti dodeljena `detetu` tj. kopije tih promenljivih
+
+```C
+int var = 5;
+pid_t childPid = fork();
+check_error(childPid != -1, "fork failed");
+
+if (childPid > 0) { // parent branch
+	printf("Parent);
+	   
+} else { // child branch
+	printf("Child:\n");
+	var *= 2;
+
+	printf("Var in child: %d\n", var);
+	exit(EXIT_SUCCESS);
+}
+
+int status;
+check_error(wait(&status) != -1, "wait failed");
+
+if (WIFEXITED(status))
+	printf("Exit code: %d\n", WEXITSTATUS(status));
+else
+	printf("Process exited abnormally\n");
+
+printf("Only parent executes this\n");
+printf("Var in parent: %d\n", var);
+exit(EXIT_SUCCESS);
+```
+- Ovaj kod ispisuje promenljivu var i proverava na kraju status kako se `dete` zavrsilo. 
+- Izlaz ovog koda:
+```
+Hello from parent. My pid is 44274, child pid is 44275
+Hello from child. My pid is 44275, parent pid is 44274
+Var in child: 10
+Process exited normally. Exit code: 0
+Only parent executes this
+Var in parent: 5
+```
+
+### Redirekcija ulaza i izlaza procesa koriscenjem pipe-ova
+
+- Pipe se na UNIX sistemima koristi tako da izlaz jednog procesa preusmerimo da bude ulaz drugog procesa. 
+- Pipe uvek mora da bude jednosmeran, odnsno samo da radi na relaciji izlaz -> ulaz za dva procesa.
+- Ovo nam omogucava sistemski poziv `pipe` koji za dati niz celih brojeva od 2 elementa otvara 2 fajl deskriptora. Fajl deskriptor na poziciji nula je uvek za citanje, dok je na poziciji 1 uvek za pisanje; 
+```
+int p[2];
+pipe(p);
+// p[0] - read end - RD_E
+// p[1] - write end - WR_E
+```
+
+- Implementacija pipe-a za `dete` i `roditelja`:
+	1. Kreiramo dva niza celih brojeva sa po dva elementa
+	2. sistemskim pozivom `pipe` kreiramo pipeove za relacije `deteRoditelj` i `roditeljDete`
+	3.  Kreiramo `dete` sa `fork`
+	4. Zatvarmo nepotrebne fajl deskriptore da bi omogucili jednosmeran protok informacija, ovo zatvarenje fajlova radimo zato sto oba procesa dobijaju kopije podataka
+		1. U `roditelju` zatvarmo `deteRoditelj[WR_E]` i `roditeljDete[RD_E]`
+		2. U `detetu` zatvarom `deteRoditelj[RD_E]` i `roditeljDete[WR_E]`
+	6. U parentu kreiramo poruku i pisemo u fajl deskriptor `roditeljDete[WR_E]` 
+	7. Zatim u `detetu` citamo iz `roditeljDete[RD_E]` i obradjujemo dalje poruku
+
+```C
+int childToParent[2];
+int parentToChild[2];
+
+check_error(pipe(childToParent) != -1, "pipe");
+check_error(pipe(parentToChild) != -1, "pipe");
+
+pid_t childPid = fork();
+check_error(childPid != -1, "fork");
+
+if (childPid > 0) {// parrent
+
+	close(parentToChild[RD_END]);
+	close(childToParent[WR_END]);
+
+	char buffer[BUFF_SIZE];
+	sprintf(buffer, "%s", "Hello child\n");
+
+	check_error(write(parentToChild[WR_END], buffer, strlen(buffer)) != -1, "write parrent");
+
+	// recive message from child
+	char message[BUFF_SIZE];
+	int readBytes = read(childToParent[RD_END], message, BUFF_SIZE);
+
+	check_error(readBytes != -1, "read parent");
+	message[readBytes] = 0;
+
+	printf("Child message: %s\n", message);
+
+	// close reaminging fd's
+	close(parentToChild[WR_END]);
+	close(childToParent[RD_END]);
+} else {// child
+
+	close(childToParent[RD_END]);
+	close(parentToChild[WR_END]);
+
+	char message[BUFF_SIZE];
+	int readBytes = read(parentToChild[RD_END], message, BUFF_SIZE);
+	check_error(readBytes != -1, "read");
+	message[readBytes] = 0;
+
+	char buffer[BUFF_SIZE];
+	sprintf(buffer, "Parrent message: %s", message);
+
+	printf("%s\n", buffer);
+
+	// send message to prent
+	sprintf(buffer, "%s", "Hello father\n");
+
+	check_error(write(childToParent[WR_END], buffer, strlen(buffer)) != -1, "write child");
+
+	close(childToParent[WR_END]);
+	close(parentToChild[RD_END]);
+
+	exit(EXIT_SUCCESS);
+
+}
+
+check_error(wait(NULL) != -1, "wait");
+exit(EXIT_SUCCESS);
+```
+- Ovaj kod predstavlja implementaciju gore navedenog procesa stvaranja pipe-a
+
+###  Exec 
+
+---
