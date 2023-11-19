@@ -220,3 +220,121 @@ void print_groups(struct group *grinfo){
 
 
 
+
+
+# 4. cas
+
+## Umask i promena prava pristupa
+
+- Umask koristimo da bi dobili prava pristupa koja zelimo posto sistem ne dozvoljava kreiranje fajla sa `0777` pravima na primer. Sistem iz sigurnosnih razloga ne dozvoljava kreiranje fajlova koje mogu svi da citaju, pisu i izvrsavaju pa su default prava pristupa uglavnom `0775` ili `0664`
+
+- Zeljena prava dobijamo kada zeljena prava `&` (and-ujemo) sa invertovanim umaskom.
+
+- Za razliku od `chmod` , `umask` ne radi sa vec postojecim fajlovima vec samo omogucava kreiranje fajla sa zeljenim pravima.
+- Komanda `chmod` menja prava datom fajlu `chmod [OPTION] mode ... FILE`
+
+```C
+int main(int argc, char** argv) {
+
+    check_error(argc == 3, "./chmod file permissions");
+
+    int prava = strtol(argv[2], NULL, 8);
+
+        //kreira se fajl
+    int fd = open(argv[1], O_CREAT, prava);
+    check_error(fd != -1, "open");
+    close(fd);
+
+	//menjaju mu se prava pristupa
+    check_error(chmod(argv[1], prava) != -1, "chmod");
+
+    exit(EXIT_SUCCESS);
+}
+```
+- Fukcija koja emulira sistemsku komandu `chmod` i menja mu prava pristupa, problem sa ovom funkcijom je taj sto mi ne bi smeli i ne bi trebali da otvaramo fajl ako zelimu da mu samo promenimo prava
+
+```C
+/* izdvajamo stara prava pristupa fajlu*/
+    struct stat fileinfo;
+    check_error(stat(argv[1], &fileinfo) != -1, "stat");
+    mode_t current_mode = fileinfo.st_mode;
+
+        /* dodajemo i oduzimamo trazena prava*/
+    mode_t new_mode = (current_mode | S_IWGRP) & ~S_IROTH;
+
+        /* menjaju mu se prava pristupa */
+    check_error(chmod(argv[1], new_mode) != -1, "chmod");
+
+    exit(EXIT_SUCCESS);
+```
+- Ova funckija ne otvara fajl ali mu menja prava pristupa tako sto ih prvo dobije iz `stat` strukture. Ova funkcija konkretno oduzima prava citanja za `other` a dodaje prava pisanja za `group` 
+
+## Obilazak direktorijuma
+
+- Obilazak direktorijuma mozemo uraditi na 2 nacina:
+	1. tako sto cemo rucno napisati funkciju za rekurzivni prolaz kroz direktorijum
+	2. koriscenjem `nftw` funkcije iz zaglavlja `<ftf.h>` (file tree walk)
+
+- Rucna implementacija obilaska direktorijuma u dubinu
+```C
+void sizeOfDir(char* putanja, unsigned* psize) {
+    /* citamo informacije o trenutnom fajlu */
+    struct stat fInfo;
+    check_error(lstat(putanja, &fInfo) != -1, "...");
+    
+    /* dodajemo velicinu fajla na tekuci zbir */
+    *psize += fInfo.st_size;
+
+    if (!S_ISDIR(fInfo.st_mode)) {
+            /* prekidamo rekurziju */
+		return;
+    }
+
+        /* ako je u pitanju dirketorijum, otvaramo ga */
+    DIR* dir = opendir(putanja);
+    check_error(dir != NULL, "...");
+
+        /* u petlji citamo sadrzaj direktorijuma */
+    struct dirent* dirEntry = NULL;
+    errno = 0;
+    while ((dirEntry = readdir(dir)) != NULL) {
+ 
+        char* path = malloc(strlen(putanja) + strlen(dirEntry->d_name) + 2);
+        check_error(path != NULL, "...");
+
+                /* formiramo putanju na gore opisani nacin */
+        strcpy(path, putanja);
+        strcat(path, "/");
+        strcat(path, dirEntry->d_name);
+
+        if (!strcmp(dirEntry->d_name, ".") || !strcmp(dirEntry->d_name, "..")) {
+            check_error(stat(path, &fInfo) != -1, "...");
+            *psize += fInfo.st_size;
+
+            free(path);
+            errno = 0;
+            continue;
+            }
+        sizeOfDir(path, psize);
+        free(path);
+
+        errno = 0;
+        }
+
+    check_error(errno != EBADF, "readdir");
+        /* zatvaramo direktorijum */
+    check_error(closedir(dir) != -1, "...");
+}
+```
+
+-  Drugi nacin je samo koriscenjem funkcije `nftw` tako sto cemo joj posalti samo `const char *path*` putanju do fajla,  i pokazivac na funkciju kojom ce da obradi fajlove, `int f(const char *fpath, const struct stat *sb, int typeflag, struct FTW *ftwbuf`, broj otvorenih fajl deskriptora `int nopenfd` i `int statusflag`,
+
+- `int f(const char *fpath, const struct stat *sb, int typeflag, struct FTW *ftwbuf` ova funkcija je zaduzena za obradjivanje fajla koji funkcija ntfw nadje;
+	1. `const char *fpath`, je putanja koji `ntfw` prosledjuje ovoj funkciji
+	2. `const struct stat *sb*`, je stat struktura pomocu koje mozemo da obradjujemo informacije o trenutnom fajlu koje je `nftw pronasao`
+	3. `int typeflag` nam pomaze da brze utvrdimo tip fajla, na primer `FTF_F` znaci da je fajl na putanje `fpath` regularan fajl
+	4. `ftwbuf` pruza funkciji uvid u struktur `FTW` koja sadrzi dve promenljive, `int base` i `int level`, `base` oznacava koliko daleko smo odmakli od pocetka nase putanje a `level` koliko smo duboko, 
+
+
+
+
