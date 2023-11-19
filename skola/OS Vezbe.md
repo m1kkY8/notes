@@ -9,7 +9,7 @@
 - Definisanje makroa za proveru greska koji ce biti cesto koriscenj tokom kursa.
 
 ```C
-#define check_error(cond, msg)\
+define check_error(cond, msg)\
 	do{\
 		if(!(cond)){\
 			perror(msg);\
@@ -27,7 +27,7 @@
 > **Uvek osloboditi alociranu memoriju nakon sto ona prestane da se koristi**
 
 > [!important] TLPI poglavlja
-> 3.4 Handling errors from Sys Calls
+> - 3.4 Handling errors from Sys Calls
 
 # 2. cas
 
@@ -120,8 +120,8 @@ void print_groups(struct group *grinfo){
 - Struktura `stat` takodje sadrzi i informacije o velicini fajla, vremenu nastanka fajla, vremenu pristupa i vremenu modifikacije, `uid_t` korisnika koji je napravio fajl kao i `gid_t` kojoj taj korisnik pripada.
 
 >[!important] TLPI poglavlja i materijali
-> 8.1 - 8.4, 15.1, 15.4-15.4.3
-> man 5 passwd i man 5 group
+> - 8.1 - 8.4, 15.1, 15.4-15.4.3
+> - man 5 passwd i man 5 group
 
 # 3. cas
 
@@ -211,16 +211,10 @@ void print_groups(struct group *grinfo){
 
 
 > [!important] TLPI poglavlja
-> 4-4.7
-> 18.3 - unlink
-> 18.6 rmdir i mkdir
-> 15.2-15.2.1
-
-
-
-
-
-
+> - 4-4.7
+> - 18.3 - unlink
+> - 18.6 rmdir i mkdir
+> - 15.2-15.2.1
 
 # 4. cas
 
@@ -335,6 +329,47 @@ void sizeOfDir(char* putanja, unsigned* psize) {
 	3. `int typeflag` nam pomaze da brze utvrdimo tip fajla, na primer `FTF_F` znaci da je fajl na putanje `fpath` regularan fajl
 	4. `ftwbuf` pruza funkciji uvid u struktur `FTW` koja sadrzi dve promenljive, `int base` i `int level`, `base` oznacava koliko daleko smo odmakli od pocetka nase putanje a `level` koliko smo duboko, 
 
+- Implementacija prolaza sa `nftw`
+```C
+int days = 0;
 
+int filterByTime(const char* fpath, const struct stat* sb, int typeflag, struct FTW* ftwbuf) {
+
+    time_t now = time(NULL);
+	time_t diffInSec = now - sb->st_mtime;
+	
+	if (diffInSec/DAY_IN_SEC < days)
+        printf("%-80s\n", fpath);
+
+    return 0;
+}
+
+int main(int argc, char** argv) {
+    check_error(argc == 3, "./filterExt path days");
+
+        /* prebacivanje stringa u broj */
+    days = atoi(argv[2]);
+
+        /* provera da li se radi o direktorijumu */
+    struct stat fInfo;
+    check_error(stat(argv[1], &fInfo) != -1, "stat failed");
+    check_error(S_ISDIR(fInfo.st_mode), "not a dir");
+
+        /* obilazak direktorijuma pomocu ugradjene funkcije */
+    check_error(nftw(argv[1], filterByTime, 50, 0) != -1, "nftw failed");
+
+    exit(EXIT_SUCCESS);
+}
+```
+- Ova funkcija ispisjue sve fajlove koji su modifikovani u poslenjih `days` dana
+
+>[!important] TLPI poglavlja
+> 15.4.6, 15.4.7
+> 18.1, 18.2, 18.3, 18.8
+
+>[!important]  Korisno
+>- komandom `ln` se mogu kreirati hard linkovi. Komandom `ln -s` se mogu kreirati simbolički linkovi. Može biti korisno zarad testiranja na ispitu.
+
+# 5. cas
 
 
