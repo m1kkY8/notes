@@ -575,7 +575,62 @@ exit(EXIT_SUCCESS);
 - Ovaj kod predstavlja implementaciju gore navedenog procesa stvaranja pipe-a
 
 ###  Exec 
+- Varijacije funkcije `exec` nam omugcavaju da iz naseg programa porkecemo druge programe, za razliku od `fork` koji vrsi kopiranje adresnog prostora i dodeljuje ga `child` procesu, `exec` vrsi zamenu adresnog prostora i nas program vise ne postoji kao proces vec je njegov prostor dodeljen novom procesu
 
+- `exec` porodica funkcija se deli na:
+	1. `execl`:
+		1. `execlp`
+		2. `execle`
+	2. `execv`:
+		1. `execvp`
+		2. `execvpe`
+
+`execl` koriste niz NULL-terminirajucih nizova karaktera kao argumente
+`execv` koriste `char **arguments` kao argumente funckije koje pozivaju, prvi element ovog niza arguments se uvek koristi kao ime fajla kojeg pozivamo.
+
+
+```C
+int main(int argc, char** argv) {
+
+	check_error(execlp("ls", "ls", "-l", NULL) != -1, "exec failed");
+
+	printf("Ovaj deo koda se ne izvrsava\n");
+    exit(EXIT_SUCCESS);
+}
+```
+- Ovaj kod poziva funkciju `ls` sa arugmentima `-l` koji vrsi ispisivanje sadrzaja trenutnog direktorijuma. Ovde za poziv `ls -l` koristimo funkciju `execlp` 
+
+```C
+char** arguments = malloc(argc * sizeof(char*));
+check_error(arguments != NULL, "");
+
+for(int i = 1; i < argc; i++){
+	arguments[i-1] = malloc(strlen(argv[i]) + 1);
+	check_error(arguments[i-1] != NULL, "");
+	strcpy(arguments[i-1], argv[i]);
+}
+
+arguments[argc - 1] = NULL;
+pid_t childPid = fork();
+check_error(childPid != -1, "");
+
+if(childPid == 0){
+	check_error(execvp(arguments[0], arguments) != -1, "");
+	exit(EXIT_SUCCESS);
+}
+
+int status = 0;
+check_error(wait(&status) != -1, "");
+if(WIFEXITED(status) && (WEXITSTATUS(status) == EXIT_SUCCESS)){
+	printf("success\n");
+} else {
+	printf("fail\n");
+}
+
+exit(EXIT_SUCCESS);
+```
+- Ovaj kod implmentria `execvp` i pokazuje nacin na koji se on implementira i pritom koristi `dete` proces da se adresni prostor koji koristi `roditelj` ne bi obrisao i sto omogucava dalje izvrsavanje programa nakon sto `dete` pozove `exec` i zavrsi se.
+- Sa `wait` se brinemo o tome da se ne stvaraju zombiji, i tu zavrsavamo i izvrsavanje roditelja
 
 > [!important] TLPI poglavlja
 > - 24-24.2
