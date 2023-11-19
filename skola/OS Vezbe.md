@@ -377,6 +377,16 @@ int main(int argc, char** argv) {
 
 ---
 # 5. cas
+
+- Ovde je uglavnom sve isto kao na 4. casu, prolazak kroz direktorijum sa `nftw` funkcijom i obrada fajlova
+![[Pasted image 20231119175850.png]]
+- Jedina nova stvar je obrada vremena koju me sad mrzi da pisem
+
+> [!important] TLPI poglavlja
+> - 18 - nftw
+> - 10-10.2
+
+
 ---
 
 # 6. cas
