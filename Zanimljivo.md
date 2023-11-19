@@ -10,3 +10,27 @@
 6. `cat [path]` - ispisuje fajl na standardni izlaz
 7. `cp [src dest]` kopira zadati fajl na odredjenu putanju
 
+>[!info]
+
+>[!TODO]
+
+>[!tip]
+
+>[!done]
+
+>[!help]
+
+>[!warning]
+
+>[!fail]
+
+>[!error]
+
+>[!bug]
+
+>[!example]
+
+>[!cite]
+
+
+

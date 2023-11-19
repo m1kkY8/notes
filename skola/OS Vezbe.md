@@ -1,3 +1,5 @@
+
+--- 
 # 1. cas
 
 ## Podsecanje iz P1 i P2, i ceste greske na ispitima.
@@ -20,7 +22,7 @@ define check_error(cond, msg)\
 
 - Ovaj makro se koristi tako sto se kao cond stavi uslov koji ne sme da bude true, na primer kod rada sa File Descriptorima kada proveravamo `check_error(fd != -1)`, u slucaju da je fd -1 mi izbacujemo gresku. Takodje je jako bitno da koristimo `errno.h` zaglavlje koje nam omogucava detaljniji uvid u to sta je tacno greska.
 
->[!bug]+ OBAVEZNO
+>[!warning]+ OBAVEZNO
 > **Pokazivace uvek inicijalizovati na NULL**
 > **Uvek nakon alokacije proveriti da li je alokacija uspesna**
 > **Uvek zatvoriti otvorene fajlove i fajl dekriptore**
@@ -29,6 +31,7 @@ define check_error(cond, msg)\
 > [!important] TLPI poglavlja
 > - 3.4 Handling errors from Sys Calls
 
+---
 # 2. cas
 
 ## Dobijanje inforamcija o korisniku, grupi i fajlu
@@ -123,6 +126,7 @@ void print_groups(struct group *grinfo){
 > - 8.1 - 8.4, 15.1, 15.4-15.4.3
 > - man 5 passwd i man 5 group
 
+---
 # 3. cas
 
 ## Sistemski pozivi za rad sa fajlovima
@@ -216,6 +220,7 @@ void print_groups(struct group *grinfo){
 > - 18.6 rmdir i mkdir
 > - 15.2-15.2.1
 
+--- 
 # 4. cas
 
 ## Umask i promena prava pristupa
@@ -267,7 +272,7 @@ int main(int argc, char** argv) {
 
 - Obilazak direktorijuma mozemo uraditi na 2 nacina:
 	1. tako sto cemo rucno napisati funkciju za rekurzivni prolaz kroz direktorijum
-	2. koriscenjem `nftw` funkcije iz zaglavlja `<ftf.h>` (file tree walk)
+	2. koriscenjem `nftw` funkcije iz zaglavlja `<ftw.h>` (file tree walk)
 
 - Rucna implementacija obilaska direktorijuma u dubinu
 ```C
@@ -370,6 +375,12 @@ int main(int argc, char** argv) {
 >[!important]  Korisno
 >- komandom `ln` se mogu kreirati hard linkovi. Komandom `ln -s` se mogu kreirati simbolički linkovi. Može biti korisno zarad testiranja na ispitu.
 
+---
 # 5. cas
+- Nesto 
+
+
+
+---
 
 
