@@ -1,3 +1,10 @@
+---
+id: OS Vezbe
+aliases:
+  - 1. cas
+tags: []
+---
+
 
 --- 
 # 1. cas
@@ -637,9 +644,20 @@ exit(EXIT_SUCCESS);
 > - 26.1-26.1.3, 26.2
 > - 27-27.4
 > - 44-44.4
----
 
+---
 # 7. cas
 
-> [!bug] Onaj sto sam te jebo
 
+
+
+
+
+
+
+> [!important] TLPI poglavlja
+> - 20, 20.1, 20.2, 20.3, 20.4, 20.5, 20.14
+> - 21.1.2
+> - 44.7, 44.8, 44.10
+
+---
